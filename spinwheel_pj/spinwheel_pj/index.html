@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HTML5 Canvas Winning Wheel</title>
+    <link rel="stylesheet" href="main.css" type="text/css" />
+    <script type="text/javascript" src="Winwheel.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+</head>
+<body>
+<div align="center">
+    <h1 style="color: #ef6f6f">Vòng quay may mắn</h1>
+    <p>Mỗi ngày bạn sẽ có một lượt quay để kiếm về điểm thưởng.</p>
+
+    <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+            <td>
+                <div class="power_controls">
+                    <img id="spin_button" src="spin_off.png" alt="Spin" onClick="trySpin();" />
+                    <br /><br />
+                    <div id="time_remaining" style="display:none;"></div>
+                </div>
+            </td>
+            <td width="438" height="582" class="the_wheel" align="center" valign="center">
+                <canvas id="canvas" width="434" height="434">
+                    <p style="{color: white}" align="center">Sorry, your browser doesn't support canvas. Please try another.</p>
+                </canvas>
+            </td>
+        </tr>
+    </table>
+</div>
+<script>
+    var theWheel = new Winwheel({
+        'numSegments'  : 8,
+        'outerRadius'  : 212,
+        'textFontSize' : 28,
+        'segments'     : [
+            {'fillStyle' : '#eae56f', 'text' : 'Prize 1'},
+            {'fillStyle' : '#89f26e', 'text' : 'Prize 2'},
+            {'fillStyle' : '#7de6ef', 'text' : 'Prize 3'},
+            {'fillStyle' : '#e7706f', 'text' : 'Prize 4'},
+            {'fillStyle' : '#eae56f', 'text' : 'Prize 5'},
+            {'fillStyle' : '#89f26e', 'text' : 'Prize 6'},
+            {'fillStyle' : '#7de6ef', 'text' : 'Prize 7'},
+            {'fillStyle' : '#e7706f', 'text' : 'Prize 8'}
+        ],
+        'animation' : {
+            'type'     : 'spinToStop',
+            'duration' : 5,
+            'spins'    : 8,
+            'callbackFinished' : alertPrize
+        }
+    });
+
+    function canSpinToday() {
+        var lastSpinTime = localStorage.getItem('lastSpinTime');
+        if (!lastSpinTime) return true; // No last spin time, allow spin
+
+        var oneDayInMillis =  10 * 1000;
+        var currentTime = new Date().getTime();
+        var lastSpinDate = new Date(parseInt(lastSpinTime));
+        var timeSinceLastSpin = currentTime - lastSpinDate.getTime();
+
+        return timeSinceLastSpin >= oneDayInMillis;
+    }
+
+    function updateRemainingTime() {
+        var lastSpinTime = localStorage.getItem('lastSpinTime');
+        var timeRemainingElement = document.getElementById('time_remaining');
+
+        if (!lastSpinTime || canSpinToday()) {
+            timeRemainingElement.style.display = "none";
+            return;
+        }
+
+        var oneDayInMillis =  10 * 1000;
+        var currentTime = new Date().getTime();
+        var lastSpinDate = new Date(parseInt(lastSpinTime));
+        var timeSinceLastSpin = currentTime - lastSpinDate.getTime();
+
+        var remainingTime = oneDayInMillis - timeSinceLastSpin;
+
+        if (remainingTime > 0) {
+            var remainingHours = Math.floor(remainingTime / (60 * 60 * 1000));
+            var remainingMinutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
+            var remainingSeconds = Math.floor((remainingTime % (60 * 1000)) / 1000);
+
+            timeRemainingElement.innerHTML = "Next spin in: " + remainingHours + "h " + remainingMinutes + "m " + remainingSeconds + "s";
+            timeRemainingElement.style.display = "block";
+        } else {
+            timeRemainingElement.style.display = "none";
+        }
+    }
+
+    function trySpin() {
+        if (canSpinToday()) {
+            startSpin();
+            localStorage.setItem('lastSpinTime', new Date().getTime());
+            updateRemainingTime(); // Update remaining time after starting the spin
+        } else {
+            alert("You can spin only once per day!");
+        }
+    }
+
+    function calculatePrize() {
+        const angleRatios = [
+            { angle: 90, ratio: 0.30 },
+            { angle: 180, ratio: 0.30 },
+            { angle: 270, ratio: 0.30 },
+            { angle: 360, ratio: 0.10 }
+        ];
+
+        let randomValue = Math.random();
+        let stopAt;
+
+        for (const item of angleRatios) {
+            if (randomValue < item.ratio) {
+                stopAt = item.angle;
+                break;
+            } else {
+                randomValue -= item.ratio;
+            }
+        }
+
+        theWheel.animation.stopAngle = stopAt;
+        theWheel.startAnimation();
+    }
+
+    var wheelPower    = 0;
+    var wheelSpinning = false;
+
+    function powerSelected(powerLevel) {
+        if (wheelSpinning == false) {
+            document.getElementById('pw1').className = "";
+            document.getElementById('pw2').className = "";
+            document.getElementById('pw3').className = "";
+
+            if (powerLevel >= 1) {
+                document.getElementById('pw1').className = "pw1";
+            }
+
+            if (powerLevel >= 2) {
+                document.getElementById('pw2').className = "pw2";
+            }
+
+            if (powerLevel >= 3) {
+                document.getElementById('pw3').className = "pw3";
+            }
+
+            wheelPower = powerLevel;
+
+            document.getElementById('spin_button').src = "spin_on.png";
+            document.getElementById('spin_button').className = "clickable";
+        }
+    }
+
+    function startSpin() {
+        if (wheelSpinning == false) {
+            if (wheelPower == 1) {
+                theWheel.animation.spins = 3;
+            }
+            else if (wheelPower == 2) {
+                theWheel.animation.spins = 8;
+            }
+            else if (wheelPower == 3) {
+                theWheel.animation.spins = 15;
+            }
+
+            document.getElementById('spin_button').src       = "spin_off.png";
+            document.getElementById('spin_button').className = "";
+
+            calculatePrize();
+            theWheel.startAnimation();
+            wheelSpinning = true;
+        }
+    }
+
+    function resetWheel() {
+        theWheel.stopAnimation(false);
+        theWheel.rotationAngle = 0;
+        theWheel.draw();
+
+        document.getElementById('pw1').className = "";
+        document.getElementById('pw2').className = "";
+        document.getElementById('pw3').className = "";
+
+        wheelSpinning = false;
+    }
+
+    function alertPrize(indicatedSegment) {
+        alert("You have won " + indicatedSegment.text);
+        resetWheel();
+    }
+
+    updateRemainingTime();
+    setInterval(updateRemainingTime, 1000);
+</script>
+</body>
+</html>
